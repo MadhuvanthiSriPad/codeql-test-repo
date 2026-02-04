@@ -40,8 +40,8 @@ def get_user():
 @app.route('/greet')
 def greet():
     name = request.args.get('name', 'Guest')
-    # Directly rendering user input without escaping
-    return render_template_string(f"<h1>Hello, {name}!</h1>")
+    # Using Jinja2 templating with proper escaping to prevent template injection
+    return render_template_string("<h1>Hello, {{ name }}!</h1>", name=name)
 
 
 # VULNERABILITY 4: Command Injection
@@ -79,10 +79,10 @@ import hashlib
 @app.route('/hash')
 def hash_password():
     password = request.args.get('password')
-    # Using weak MD5 hash
-    hashed = hashlib.md5(password.encode()).hexdigest()
+    # Using SHA-256 hash for secure password hashing
+    hashed = hashlib.sha256(password.encode()).hexdigest()
     return hashed
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
