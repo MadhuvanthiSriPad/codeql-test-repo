@@ -7,7 +7,7 @@ from flask import Flask, request, render_template_string
 import sqlite3
 import os
 import subprocess
-import pickle
+import json
 import base64
 
 app = Flask(__name__)
@@ -22,15 +22,15 @@ def get_db_connection():
     return conn
 
 
-# VULNERABILITY 2: SQL Injection
+# VULNERABILITY 2: SQL Injection - FIXED
 @app.route('/user')
 def get_user():
     user_id = request.args.get('id')
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Directly interpolating user input into SQL query
-    query = f"SELECT * FROM users WHERE id = {user_id}"
-    cursor.execute(query)
+    # Use parameterized query to prevent SQL injection
+    query = "SELECT * FROM users WHERE id = ?"
+    cursor.execute(query, (user_id,))
     result = cursor.fetchone()
     conn.close()
     return str(result)
@@ -53,23 +53,26 @@ def ping():
     return result
 
 
-# VULNERABILITY 5: Path Traversal
+# VULNERABILITY 5: Path Traversal - FIXED
 @app.route('/read')
 def read_file():
     filename = request.args.get('file')
-    # No validation of file path
-    filepath = os.path.join('/var/data/', filename)
+    # Validate and sanitize file path to prevent directory traversal
+    base_dir = os.path.realpath('/var/data/')
+    filepath = os.path.realpath(os.path.join(base_dir, filename))
+    if not filepath.startswith(base_dir + os.sep):
+        return "Access denied: Invalid file path", 403
     with open(filepath, 'r') as f:
         return f.read()
 
 
-# VULNERABILITY 6: Insecure Deserialization
+# VULNERABILITY 6: Insecure Deserialization - FIXED
 @app.route('/load')
 def load_data():
     data = request.args.get('data')
-    # Deserializing untrusted data
+    # Use JSON instead of pickle for safe deserialization
     decoded = base64.b64decode(data)
-    obj = pickle.loads(decoded)
+    obj = json.loads(decoded.decode('utf-8'))
     return str(obj)
 
 
