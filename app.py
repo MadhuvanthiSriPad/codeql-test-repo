@@ -73,15 +73,17 @@ def load_data():
     return str(obj)
 
 
-# FIXED: Using SHA-256 instead of weak MD5
+# FIXED: Using PBKDF2 for secure password hashing
 import hashlib
+import secrets
 
 @app.route('/hash')
 def hash_password():
     password = request.args.get('password')
-    # Using secure SHA-256 hash
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    return hashed
+    # Using PBKDF2 with SHA-256 - computationally expensive for password hashing
+    salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000).hex()
+    return f"{salt}:{hashed}"
 
 
 if __name__ == '__main__':
