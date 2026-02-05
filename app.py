@@ -40,9 +40,8 @@ def get_user():
 @app.route('/greet')
 def greet():
     name = request.args.get('name', 'Guest')
-    # Escape user input to prevent XSS
-    safe_name = escape(name)
-    return render_template_string(f"<h1>Hello, {safe_name}!</h1>")
+    # Use Jinja2 template variables for automatic escaping (prevents XSS and SSTI)
+    return render_template_string("<h1>Hello, {{ name }}!</h1>", name=name)
 
 
 # VULNERABILITY 4: Command Injection - FIXED
@@ -74,10 +73,10 @@ def read_file():
 def load_data():
     data = request.args.get('data')
     # Use JSON instead of pickle for safe deserialization
-    import json
     decoded = base64.b64decode(data)
     obj = json.loads(decoded)
-    return escape(str(obj))
+    # Use Jinja2 template for safe output (prevents XSS)
+    return render_template_string("{{ data }}", data=str(obj))
 
 
 # FIXED: Using PBKDF2 for secure password hashing
