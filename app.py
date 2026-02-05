@@ -3,13 +3,14 @@ Vulnerable Flask application for CodeQL testing.
 Contains intentional security vulnerabilities that CodeQL will detect.
 """
 
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, Response
 from markupsafe import escape
 import sqlite3
 import os
 import subprocess
 import base64
 import json
+import re
 
 app = Flask(__name__)
 
@@ -45,10 +46,16 @@ def greet():
     return render_template_string(f"<h1>Hello, {safe_name}!</h1>")
 
 
-# VULNERABILITY 4: Command Injection - FIXED
+# VULNERABILITY 4: Command Injection - FIXED with input validation
 @app.route('/ping')
 def ping():
     host = request.args.get('host')
+    if not host:
+        return "No host specified", 400
+    # Validate host is a valid hostname or IP address (no special characters)
+    # Allow only alphanumeric characters, dots, and hyphens
+    if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$', host):
+        return "Invalid host format", 400
     # Use subprocess with list args to prevent command injection
     result = subprocess.check_output(['ping', '-c', '1', host])
     return result
@@ -69,15 +76,21 @@ def read_file():
         return f.read()
 
 
-# VULNERABILITY 6: Insecure Deserialization - FIXED
+# VULNERABILITY 6: Insecure Deserialization - FIXED with proper error handling
 @app.route('/load')
 def load_data():
     data = request.args.get('data')
-    # Use JSON instead of pickle for safe deserialization
-    import json
-    decoded = base64.b64decode(data)
-    obj = json.loads(decoded)
-    return escape(str(obj))
+    if not data:
+        return "No data specified", 400
+    try:
+        # Use JSON instead of pickle for safe deserialization
+        decoded = base64.b64decode(data)
+        obj = json.loads(decoded)
+        # Return as plain text with proper content type to prevent XSS
+        return Response(str(obj), mimetype='text/plain')
+    except (ValueError, json.JSONDecodeError, base64.binascii.Error):
+        # Return generic error message to avoid exposing stack traces
+        return "Invalid data format", 400
 
 
 # FIXED: Using PBKDF2 for secure password hashing
