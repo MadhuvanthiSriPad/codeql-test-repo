@@ -4,6 +4,7 @@ Contains intentional security vulnerabilities that CodeQL will detect.
 """
 
 from flask import Flask, request, render_template_string
+from markupsafe import escape
 import sqlite3
 import os
 import subprocess
@@ -36,20 +37,21 @@ def get_user():
     return str(result)
 
 
-# VULNERABILITY 3: Cross-Site Scripting (XSS)
+# VULNERABILITY 3: Cross-Site Scripting (XSS) - FIXED
 @app.route('/greet')
 def greet():
     name = request.args.get('name', 'Guest')
-    # Directly rendering user input without escaping
-    return render_template_string(f"<h1>Hello, {name}!</h1>")
+    # Escape user input to prevent XSS
+    safe_name = escape(name)
+    return render_template_string(f"<h1>Hello, {safe_name}!</h1>")
 
 
-# VULNERABILITY 4: Command Injection
+# VULNERABILITY 4: Command Injection - FIXED
 @app.route('/ping')
 def ping():
     host = request.args.get('host')
-    # Directly passing user input to shell command
-    result = subprocess.check_output(f"ping -c 1 {host}", shell=True)
+    # Use subprocess with list args to prevent command injection
+    result = subprocess.check_output(['ping', '-c', '1', host])
     return result
 
 
@@ -63,14 +65,15 @@ def read_file():
         return f.read()
 
 
-# VULNERABILITY 6: Insecure Deserialization
+# VULNERABILITY 6: Insecure Deserialization - FIXED
 @app.route('/load')
 def load_data():
     data = request.args.get('data')
-    # Deserializing untrusted data
+    # Use JSON instead of pickle for safe deserialization
+    import json
     decoded = base64.b64decode(data)
-    obj = pickle.loads(decoded)
-    return str(obj)
+    obj = json.loads(decoded)
+    return escape(str(obj))
 
 
 # VULNERABILITY 7: Weak Cryptography
