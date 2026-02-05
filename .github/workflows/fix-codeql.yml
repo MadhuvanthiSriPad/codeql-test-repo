@@ -1,0 +1,39 @@
+name: Fix CodeQL Issues with Devin
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Number of issues per Devin session'
+        required: false
+        default: '3'
+
+  workflow_run:
+    workflows: ["CodeQL"]
+    types:
+      - completed
+
+jobs:
+  fix-security-issues:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run CodeQL Fixer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BATCH_SIZE: ${{ github.event.inputs.batch_size || '3' }}
+        run: python fix_codeql_issues.py
