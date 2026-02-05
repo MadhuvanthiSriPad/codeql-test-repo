@@ -7,8 +7,8 @@ from flask import Flask, request, render_template_string
 import sqlite3
 import os
 import subprocess
-import pickle
 import base64
+import json
 
 app = Flask(__name__)
 
@@ -22,15 +22,14 @@ def get_db_connection():
     return conn
 
 
-# VULNERABILITY 2: SQL Injection
+# VULNERABILITY 2: SQL Injection - FIXED using parameterized queries
 @app.route('/user')
 def get_user():
     user_id = request.args.get('id')
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Directly interpolating user input into SQL query
-    query = f"SELECT * FROM users WHERE id = {user_id}"
-    cursor.execute(query)
+    query = "SELECT * FROM users WHERE id = ?"
+    cursor.execute(query, (user_id,))
     result = cursor.fetchone()
     conn.close()
     return str(result)
@@ -53,24 +52,33 @@ def ping():
     return result
 
 
-# VULNERABILITY 5: Path Traversal
+# VULNERABILITY 5: Path Traversal - FIXED with path validation
 @app.route('/read')
 def read_file():
     filename = request.args.get('file')
-    # No validation of file path
-    filepath = os.path.join('/var/data/', filename)
-    with open(filepath, 'r') as f:
+    if not filename:
+        return "No file specified", 400
+    base_dir = '/var/data/'
+    filepath = os.path.join(base_dir, filename)
+    real_filepath = os.path.realpath(filepath)
+    if not real_filepath.startswith(os.path.realpath(base_dir)):
+        return "Access denied", 403
+    with open(real_filepath, 'r') as f:
         return f.read()
 
 
-# VULNERABILITY 6: Insecure Deserialization
+# VULNERABILITY 6: Insecure Deserialization - FIXED using JSON instead of pickle
 @app.route('/load')
 def load_data():
     data = request.args.get('data')
-    # Deserializing untrusted data
-    decoded = base64.b64decode(data)
-    obj = pickle.loads(decoded)
-    return str(obj)
+    if not data:
+        return "No data provided", 400
+    try:
+        decoded = base64.b64decode(data)
+        obj = json.loads(decoded)
+        return str(obj)
+    except (json.JSONDecodeError, ValueError) as e:
+        return f"Invalid JSON data: {str(e)}", 400
 
 
 # VULNERABILITY 7: Weak Cryptography
