@@ -36,12 +36,12 @@ def get_user():
     return str(result)
 
 
-# VULNERABILITY 3: Cross-Site Scripting (XSS)
+# FIXED: Using safe templating with Jinja2 auto-escaping
 @app.route('/greet')
 def greet():
     name = request.args.get('name', 'Guest')
-    # Directly rendering user input without escaping
-    return render_template_string(f"<h1>Hello, {name}!</h1>")
+    # Using parameterized template to prevent template injection
+    return render_template_string("<h1>Hello, {{ name }}!</h1>", name=name)
 
 
 # VULNERABILITY 4: Command Injection
@@ -73,16 +73,18 @@ def load_data():
     return str(obj)
 
 
-# VULNERABILITY 7: Weak Cryptography
+# FIXED: Using PBKDF2 for secure password hashing
 import hashlib
+import secrets
 
 @app.route('/hash')
 def hash_password():
     password = request.args.get('password')
-    # Using weak MD5 hash
-    hashed = hashlib.md5(password.encode()).hexdigest()
-    return hashed
+    # Using PBKDF2 with SHA-256 - computationally expensive for password hashing
+    salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000).hex()
+    return f"{salt}:{hashed}"
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
