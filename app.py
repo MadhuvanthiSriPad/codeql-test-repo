@@ -4,6 +4,7 @@ Contains intentional security vulnerabilities that CodeQL will detect.
 """
 
 from flask import Flask, request, render_template_string
+from werkzeug.security import generate_password_hash
 import sqlite3
 import os
 import subprocess
@@ -73,14 +74,12 @@ def load_data():
     return str(obj)
 
 
-# VULNERABILITY 7: Weak Cryptography
-import hashlib
-
+# VULNERABILITY 7: Weak Cryptography - FIXED
 @app.route('/hash')
 def hash_password():
     password = request.args.get('password')
-    # Using SHA-256 hash for secure password hashing
-    hashed = hashlib.sha256(password.encode()).hexdigest()
+    # Using PBKDF2 via werkzeug for secure password hashing
+    hashed = generate_password_hash(password)
     return hashed
 
 
