@@ -42,9 +42,9 @@ def get_user():
 @app.route('/greet')
 def greet():
     name = request.args.get('name', 'Guest')
-    # Escape user input to prevent XSS
-    safe_name = html.escape(name)
-    return render_template_string(f"<h1>Hello, {safe_name}!</h1>")
+    # Use Jinja2 template with context variable to prevent XSS and SSTI
+    # Jinja2 auto-escapes variables by default
+    return render_template_string("<h1>Hello, {{ name }}!</h1>", name=name)
 
 
 # VULNERABILITY 4: Command Injection - FIXED
