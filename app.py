@@ -60,22 +60,24 @@ def ping():
     return result
 
 
-# VULNERABILITY 5: Path Traversal - FIXED with path validation
-ALLOWED_FILES = {'config.txt', 'data.json', 'readme.txt', 'settings.ini'}
+# VULNERABILITY 5: Path Traversal - FIXED with dictionary mapping
+# Map user-provided keys to actual file paths (no user input in paths)
+ALLOWED_FILES = {
+    'config': '/var/data/config.txt',
+    'data': '/var/data/data.json',
+    'readme': '/var/data/readme.txt',
+    'settings': '/var/data/settings.ini'
+}
 
 @app.route('/read')
 def read_file():
-    filename = request.args.get('file')
-    if not filename:
+    file_key = request.args.get('file')
+    if not file_key:
         return "No file specified", 400
-    # Use basename to strip any directory components (prevents path traversal)
-    safe_filename = os.path.basename(filename)
-    # Validate against whitelist of allowed files
-    if safe_filename not in ALLOWED_FILES:
+    # Use dictionary lookup - user input is only used as a key, not in the path
+    filepath = ALLOWED_FILES.get(file_key)
+    if filepath is None:
         return "File not allowed", 403
-    base_dir = '/var/data/'
-    # Construct filepath using sanitized filename
-    filepath = os.path.join(base_dir, safe_filename)
     if not os.path.isfile(filepath):
         return "File not found", 404
     with open(filepath, 'r') as f:
