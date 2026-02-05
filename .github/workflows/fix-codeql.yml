@@ -16,6 +16,9 @@ on:
 jobs:
   fix-security-issues:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     
     steps:
