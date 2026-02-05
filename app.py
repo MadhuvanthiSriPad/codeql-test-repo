@@ -61,27 +61,24 @@ def ping():
 
 
 # VULNERABILITY 5: Path Traversal - FIXED with path validation
+ALLOWED_FILES = {'config.txt', 'data.json', 'readme.txt', 'settings.ini'}
+
 @app.route('/read')
 def read_file():
     filename = request.args.get('file')
     if not filename:
         return "No file specified", 400
-    # Sanitize filename: remove any path traversal attempts
-    # Only allow alphanumeric characters, dots, hyphens, and underscores
-    if not re.match(r'^[a-zA-Z0-9._-]+$', filename):
-        return "Invalid filename", 400
+    # Use basename to strip any directory components (prevents path traversal)
+    safe_filename = os.path.basename(filename)
+    # Validate against whitelist of allowed files
+    if safe_filename not in ALLOWED_FILES:
+        return "File not allowed", 403
     base_dir = '/var/data/'
-    # Resolve base_dir first to get absolute path
-    real_base_dir = os.path.realpath(base_dir)
     # Construct filepath using sanitized filename
-    filepath = os.path.join(real_base_dir, filename)
-    real_filepath = os.path.realpath(filepath)
-    # Double-check the resolved path is within base directory
-    if not real_filepath.startswith(real_base_dir + os.sep) and real_filepath != real_base_dir:
-        return "Access denied", 403
-    if not os.path.isfile(real_filepath):
+    filepath = os.path.join(base_dir, safe_filename)
+    if not os.path.isfile(filepath):
         return "File not found", 404
-    with open(real_filepath, 'r') as f:
+    with open(filepath, 'r') as f:
         return f.read()
 
 
